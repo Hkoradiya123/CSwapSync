@@ -50,16 +50,33 @@ commit point and is written last. `history/` keeps at least 10 verified backups.
 
 ## Install / setup (Linux and Windows)
 
-Install like claude-swap (Linux and Windows), then run the wizard:
+Install like claude-swap (Linux and Windows), then run the wizard.
+
+**Today (not on PyPI yet)** — install from GitHub:
 
 ```bash
-uv tool install cswapsync        # or: pipx install cswapsync
+uv tool install git+https://github.com/Hkoradiya123/CSwapSync
+# or: pipx install git+https://github.com/Hkoradiya123/CSwapSync
 cswapsync setup
 ```
-Before the PyPI release, install from GitHub instead:
-`uv tool install git+https://github.com/Hkoradiya123/CSwapSync`.
-Upgrade: `uv tool upgrade cswapsync`, then `cswapsync setup` again (it re-points
-the systemd units at the new binary if needed).
+
+**After the PyPI release** — the short form:
+
+```bash
+uv tool install cswapsync        # case-insensitive: CSwapSync works too
+# or: pipx install cswapsync
+cswapsync setup
+```
+
+Why the short form does not work yet: `uv tool install <name>` / `pipx install
+<name>` look the name up on **PyPI** (pypi.org), the public package index, not on
+GitHub. `claude-swap` works because its author uploaded it there; `cswapsync` is
+only on GitHub so far, so a bare name returns "not found" and you must give the
+full `git+https://…` address. See [Publishing to PyPI](#publishing-to-pypi).
+
+Upgrade: `uv tool upgrade cswapsync` (or re-run the `git+` install with `--force`),
+then `cswapsync setup` again (it re-points the systemd units at the new binary if
+needed).
 
 Code lives in the tool's own venv; data (keys, config, backups, logs) lives in
 `~/CSwapSync` (`%USERPROFILE%\CSwapSync` on Windows) or `$CSWAPSYNC_HOME`, so
@@ -154,6 +171,29 @@ push/pull stop with exit 4, keeping both states (`backups/conflict-*`,
 
 0 ok · 1 generic · 2 config/auth · 4 conflict · 5 lease · 6 integrity ·
 7 cswap busy · 8 Drive unreachable · 9 refresh/health not ok
+
+## Publishing to PyPI
+
+One-time, by the package owner; makes `uv tool install cswapsync` work everywhere.
+A version number can never be re-uploaded, so bump `__version__` in
+`src/cswapsync/__init__.py` for every release.
+
+1. Create an account at https://pypi.org/account/register and enable 2FA.
+2. Create an API token at https://pypi.org/manage/account/token/ (scope "Entire
+   account" for the first upload; afterwards a token scoped to `cswapsync`).
+3. Build and upload (keep the token out of shell history and chat):
+
+   ```bash
+   cd CSwapSync
+   rm -rf dist && uv build
+   UV_PUBLISH_TOKEN='pypi-…' uv publish
+   ```
+
+   Dry run first on TestPyPI if you like:
+   `uv publish --publish-url https://test.pypi.org/legacy/` with a TestPyPI token,
+   then `uv tool install --index-url https://test.pypi.org/simple/
+   --extra-index-url https://pypi.org/simple/ cswapsync`.
+4. Verify on a clean machine: `uv tool install cswapsync && cswapsync --help`.
 
 ## Tests
 
