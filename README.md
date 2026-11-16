@@ -50,9 +50,9 @@ commit point and is written last. `history/` keeps at least 10 verified backups.
 
 ## Install / setup (Linux and Windows)
 
-Install like claude-swap (Linux and Windows), then run the wizard.
+Install like claude-swap (Linux and Windows), then run the wizard. Pick one:
 
-**Today (not on PyPI yet)** — install from GitHub:
+**A. From GitHub (works today, no setup)**
 
 ```bash
 uv tool install git+https://github.com/Hkoradiya123/CSwapSync
@@ -60,19 +60,48 @@ uv tool install git+https://github.com/Hkoradiya123/CSwapSync
 cswapsync setup
 ```
 
-**After the PyPI release** — the short form:
+**B. One-line installer** (installs via uv/pipx, then starts the wizard)
 
 ```bash
-uv tool install cswapsync        # case-insensitive: CSwapSync works too
-# or: pipx install cswapsync
-cswapsync setup
+curl -LsSf https://raw.githubusercontent.com/Hkoradiya123/CSwapSync/main/install.sh | sh
 ```
+```powershell
+irm https://raw.githubusercontent.com/Hkoradiya123/CSwapSync/main/install.ps1 | iex
+```
+Add `| sh -s -- --use-index` (Linux) or set `$env:CSWAPSYNC_USE_INDEX=1` first
+(Windows) to also configure option C; `--no-setup` / `$env:CSWAPSYNC_NO_SETUP=1`
+skips the wizard.
 
-Why the short form does not work yet: `uv tool install <name>` / `pipx install
-<name>` look the name up on **PyPI** (pypi.org), the public package index, not on
-GitHub. `claude-swap` works because its author uploaded it there; `cswapsync` is
-only on GitHub so far, so a bare name returns "not found" and you must give the
-full `git+https://…` address. See [Publishing to PyPI](#publishing-to-pypi).
+**C. Bare name via our own package index** (no PyPI needed)
+
+Add once per machine to uv's config (`~/.config/uv/uv.toml`, Windows
+`%APPDATA%\uv\uv.toml`):
+
+```toml
+[[index]]
+name = "cswapsync"
+url = "https://hkoradiya123.github.io/CSwapSync/simple/"
+```
+then on that machine, from anywhere:
+```bash
+uv tool install cswapsync          # CSwapSync works too (names are case-insensitive)
+```
+The index is a static PEP 503 page published to GitHub Pages by the release
+workflow. Trade-off: a `[[index]]` in uv.toml applies to **every** uv install on
+that machine. uv asks this index first for each package and falls back to PyPI
+when it is not there, so it adds one lookup per package, and an outage of the
+Pages site can block other installs. Remove the three lines to undo. A squatter
+registering `cswapsync` on PyPI cannot hijack you, because this index is asked
+first.
+
+**D. Bare name from PyPI** (no config at all)
+
+```bash
+uv tool install cswapsync          # or: pipx install cswapsync
+```
+Works once the package is on PyPI ([Releasing](#releasing)). Until then a bare
+name fails: uv/pipx look bare names up on PyPI, not on GitHub, and `cswapsync`
+is not there yet.
 
 Upgrade: `uv tool upgrade cswapsync` (or re-run the `git+` install with `--force`),
 then `cswapsync setup` again (it re-points the systemd units at the new binary if
@@ -172,28 +201,38 @@ push/pull stop with exit 4, keeping both states (`backups/conflict-*`,
 0 ok · 1 generic · 2 config/auth · 4 conflict · 5 lease · 6 integrity ·
 7 cswap busy · 8 Drive unreachable · 9 refresh/health not ok
 
-## Publishing to PyPI
+## Releasing
 
-One-time, by the package owner; makes `uv tool install cswapsync` work everywhere.
-A version number can never be re-uploaded, so bump `__version__` in
-`src/cswapsync/__init__.py` for every release.
+`.github/workflows/release.yml` runs on a pushed tag `vX.Y.Z` (must equal
+`__version__` in `src/cswapsync/__init__.py`; a version can never be re-uploaded
+to PyPI, so bump it every release):
 
-1. Create an account at https://pypi.org/account/register and enable 2FA.
-2. Create an API token at https://pypi.org/manage/account/token/ (scope "Entire
-   account" for the first upload; afterwards a token scoped to `cswapsync`).
-3. Build and upload (keep the token out of shell history and chat):
+1. tests + `uv build`
+2. GitHub Release with the wheel and sdist
+3. GitHub Pages index from all releases (option C)
+4. PyPI upload via trusted publishing (option D), only when the repo variable
+   `PUBLISH_PYPI` is `true`
 
-   ```bash
-   cd CSwapSync
-   rm -rf dist && uv build
-   UV_PUBLISH_TOKEN='pypi-…' uv publish
-   ```
+```bash
+# bump __version__, commit, then:
+git tag v1.1.0 && git push origin v1.1.0
+```
 
-   Dry run first on TestPyPI if you like:
-   `uv publish --publish-url https://test.pypi.org/legacy/` with a TestPyPI token,
-   then `uv tool install --index-url https://test.pypi.org/simple/
-   --extra-index-url https://pypi.org/simple/ cswapsync`.
-4. Verify on a clean machine: `uv tool install cswapsync && cswapsync --help`.
+One-time setup in GitHub / PyPI:
+
+- **Pages (option C):** repo Settings → Pages → Build and deployment → Source:
+  **GitHub Actions**.
+- **PyPI (option D), no token stored anywhere:**
+  1. Account at https://pypi.org/account/register with 2FA.
+  2. https://pypi.org/manage/account/publishing/ → "Add a new pending publisher":
+     project `cswapsync`, owner `Hkoradiya123`, repository `CSwapSync`, workflow
+     `release.yml`, environment `pypi`.
+  3. GitHub repo Settings → Environments → New environment `pypi`; Settings →
+     Secrets and variables → Actions → Variables → `PUBLISH_PYPI` = `true`.
+  4. Push the next tag (or re-run the workflow on the existing tag).
+
+  Manual alternative from a checkout: `rm -rf dist && uv build &&
+  UV_PUBLISH_TOKEN='pypi-…' uv publish`.
 
 ## Tests
 
