@@ -1,0 +1,7 @@
+[Unit]
+Description=CSwapSync: extend this device's session lease if it holds one
+
+[Service]
+Type=oneshot
+UMask=0077
+ExecStart=%h/CSwapSync/scripts/cswapsync heartbeat

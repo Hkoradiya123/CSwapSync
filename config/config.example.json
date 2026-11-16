@@ -1,0 +1,15 @@
+{
+  "_comment": "Copy to config.json (setup.sh does this). No secrets belong in this file.",
+  "cswap_bin": "~/.local/bin/cswap",
+  "drive_folder_name": "CSwap-Sync",
+  "expected_account_count": 2,
+  "history_keep": 10,
+  "local_keep": 10,
+  "lease_ttl_minutes": 720,
+  "lease_settle_seconds": 3.0,
+  "refresh_service": "cswap-refresh.service",
+  "refresh_log": "~/.local/state/cswap-refresh/refresh.log",
+  "refresh_max_age_minutes": 45,
+  "refresh_wait_timeout_seconds": 900,
+  "trusted_devices": []
+}

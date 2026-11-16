@@ -1,0 +1,19 @@
+# Secrets and machine state: NEVER commit
+credentials/*
+!credentials/.gitkeep
+config/config.json
+config/state.json
+config/inventory.json
+staging/*
+!staging/.gitkeep
+logs/*
+!logs/.gitkeep
+backups/*
+!backups/.gitkeep
+*.age
+*.pem
+*token*.json
+*client-secret*.json
+.venv/
+__pycache__/
+.pytest_cache/

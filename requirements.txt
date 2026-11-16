@@ -1,0 +1,8 @@
+# Pinned to the versions installed and tested on 2026-11-16.
+google-api-python-client==2.202.0
+google-auth==2.62.2
+google-auth-oauthlib==1.5.0
+google-auth-httplib2==0.4.4
+pyrage==1.4.0
+cryptography==50.0.2
+pytest==9.2.0
