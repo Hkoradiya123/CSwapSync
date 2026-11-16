@@ -17,12 +17,12 @@ from rich.panel import Panel
 from rich.prompt import Confirm, Prompt
 from rich.table import Table
 
-import platform_setup as plat
-from app_context import App, trust_bundle
-from doctor import FAIL, OK, WARN, cswap_version_check, run_doctor
-from cswap_adapter import CswapAdapter
-from encryption import parse_bundle
-from settings import (IS_WINDOWS, ConfigurationError, IntegrityError, Paths, SyncError,
+from . import platform_setup as plat
+from .app_context import App, trust_bundle
+from .doctor import FAIL, OK, WARN, cswap_version_check, run_doctor
+from .cswap_adapter import CswapAdapter
+from .encryption import parse_bundle
+from .settings import (IS_WINDOWS, Config, ConfigurationError, IntegrityError, Paths, SyncError,
                       atomic_write_json, read_json)
 
 SKIP = "SKIP"
@@ -142,7 +142,7 @@ class SetupWizard:
 
     def step_config(self) -> tuple[str, str]:
         if not self.paths.config_file.exists():
-            shutil.copyfile(self.paths.config_dir / "config.example.json", self.paths.config_file)
+            atomic_write_json(self.paths.config_file, Config().defaults_json())
         raw = read_json(self.paths.config_file, default={})
         cswap = raw.get("cswap_bin", "")
         if not cswap or not _exists(cswap):
@@ -239,17 +239,21 @@ class SetupWizard:
             return OK, f"trusted '{peer.device_id}' (end …{fp}: dusre device pe match karo)"
 
     def step_refresh_hook(self) -> tuple[str, str]:
-        launcher = plat.install_launcher(self.paths.root)
         if IS_WINDOWS:
-            return SKIP, f"Windows: no cswap-refresh.service; use 'cswapsync push'. {launcher}"
+            return SKIP, "Windows: no cswap-refresh.service; use 'cswapsync push'"
         if not plat.has_refresh_unit():
-            return WARN, f"cswap-refresh.service nahi mila; manual 'cswapsync push'. {launcher}"
-        if plat.refresh_hook_installed():
-            return OK, f"already wired into cswap-refresh.service. {launcher}"
+            return WARN, "cswap-refresh.service nahi mila; manual 'cswapsync push'"
+        gate = plat.lease_gate_installed()
+        if plat.refresh_hook_installed(gate):
+            return OK, "already wired into cswap-refresh.service"
         if not self.ui.confirm("  Refresh ke turant baad Drive sync (same service) lagayein?", True):
             return SKIP, "not installed"
-        notes = plat.install_refresh_hook(self.paths.root)
-        return OK, "; ".join(["sync added to cswap-refresh.service", launcher, *notes])
+        if not gate and self.app.config.trusted_devices:
+            gate = self.ui.confirm("  Dusre device ke session ke dauraan yahan ka refresh skip "
+                                   "karein? (token rotation se bachata hai)", default=True)
+        notes = plat.install_refresh_hook(gate)
+        return OK, "; ".join(["sync added to cswap-refresh.service"
+                              + (" + lease gate" if gate else ""), *notes])
 
     def step_push(self) -> tuple[str, str]:
         mgr = self.app.manager()

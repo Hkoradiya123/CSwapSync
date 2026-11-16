@@ -1,19 +1,18 @@
 """Setup wizard end-to-end with scripted answers, fake Drive and fake cswap."""
 import io
 import json
-import shutil
 from pathlib import Path
 
 import pytest
 from rich.console import Console
 
-import app_context
-import platform_setup
-import setup_wizard
+from cswapsync import app_context
+from cswapsync import platform_setup
+from cswapsync import setup_wizard
 from fakes import FakeCswap
-from google_drive import DriveStore
-from settings import CloudUnavailableError, Paths
-from setup_wizard import UI, SetupWizard
+from cswapsync.google_drive import DriveStore
+from cswapsync.settings import CloudUnavailableError, Paths
+from cswapsync.setup_wizard import UI, SetupWizard
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -57,21 +56,19 @@ def env(tmp_path, drive_service, monkeypatch):
     monkeypatch.setattr(platform_setup, "client_secret_candidates", lambda: [client])
     monkeypatch.setattr(platform_setup, "STRAY_EXPORTS", [stray])
     monkeypatch.setattr(platform_setup, "has_refresh_unit", lambda: False)
-    monkeypatch.setattr(platform_setup, "install_launcher", lambda root: "launcher ok")
     monkeypatch.setattr(setup_wizard, "_exists", lambda p: True)
     monkeypatch.setattr(app_context.App, "drive", lambda self, interactive=False: DriveStore(
         drive_service, "CSwap-Sync", self.state.data["drive_ids"], sleep=lambda s: None))
-    import lease
+    from cswapsync import lease
     monkeypatch.setattr(lease.LeaseManager, "__init__", _fast_lease(lease.LeaseManager.__init__))
 
-    import doctor
+    from cswapsync import doctor
     monkeypatch.setattr(doctor, "_systemd", lambda *a: "enabled")   # never read real units
     monkeypatch.setattr(doctor, "STRAY_EXPORTS", [stray])
 
     def make(name):
         root = tmp_path / name
         (root / "config").mkdir(parents=True)
-        shutil.copy(ROOT / "config" / "config.example.json", root / "config")
         (root / "credentials").mkdir(mode=0o700)
         token = root / "credentials" / "google-token.json"   # Drive itself is faked
         token.write_text("{}")

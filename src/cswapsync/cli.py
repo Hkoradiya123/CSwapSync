@@ -10,14 +10,13 @@ import os
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
 os.umask(0o077)
 
-from app_context import App, trust_bundle  # noqa: E402
-from doctor import OK, cswap_version_check, print_results, run_doctor  # noqa: E402
-from logging_config import setup_logging  # noqa: E402
-from settings import Paths, ProcessLock, SyncError  # noqa: E402
-from sync_manager import SyncManager  # noqa: E402
+from .app_context import App, trust_bundle
+from .doctor import OK, cswap_version_check, print_results, run_doctor
+from .logging_config import setup_logging
+from .settings import Paths, ProcessLock, SyncError
+from .sync_manager import SyncManager
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -206,7 +205,7 @@ def cmd_restore(mgr: SyncManager, args: argparse.Namespace) -> int:
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     if args.cmd == "setup":
-        from setup_wizard import UI, SetupWizard
+        from .setup_wizard import UI, SetupWizard
         paths = Paths()
         paths.ensure()
         setup_logging(paths.logs_dir, args.verbose)

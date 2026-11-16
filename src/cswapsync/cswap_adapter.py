@@ -20,8 +20,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
-from logging_config import get_logger
-from settings import IS_WINDOWS, CswapBusyError, IntegrityError, SyncError
+from .logging_config import get_logger
+from .settings import IS_WINDOWS, CswapBusyError, IntegrityError, SyncError
 
 log = get_logger("cswap")
 

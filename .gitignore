@@ -18,3 +18,5 @@ backups/*
 .venv/
 __pycache__/
 .pytest_cache/
+dist/
+*.egg-info/

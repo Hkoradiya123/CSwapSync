@@ -3,10 +3,10 @@ import json
 import pytest
 from google.auth.exceptions import RefreshError
 
-import google_drive
+from cswapsync import google_drive
 from fakes import http_error
-from google_drive import DriveStore, load_credentials, with_retry
-from settings import CloudUnavailableError, ConfigurationError, IntegrityError
+from cswapsync.google_drive import DriveStore, load_credentials, with_retry
+from cswapsync.settings import CloudUnavailableError, ConfigurationError, IntegrityError
 
 FAKE_TOKEN = {"token": "dummy-access", "refresh_token": "dummy-refresh",
               "client_id": "dummy.apps.googleusercontent.com", "client_secret": "dummy",

@@ -55,8 +55,10 @@ class RefreshNotHealthyError(SyncError):
 # --------------------------------------------------------------------------- paths
 class Paths:
     def __init__(self, root: Path | None = None):
+        # Data (keys, config, backups) lives OUTSIDE the installed code so that
+        # `uv tool upgrade` / `pipx upgrade` never touch it.
         env_root = os.environ.get("CSWAPSYNC_HOME")
-        self.root = Path(root or env_root or Path(__file__).resolve().parent.parent)
+        self.root = Path(root or env_root or Path.home() / "CSwapSync").expanduser()
         self.config_dir = self.root / "config"
         self.credentials_dir = self.root / "credentials"
         self.staging_dir = self.root / "staging"
@@ -173,6 +175,10 @@ class Config:
     refresh_max_age_minutes: int = 45
     refresh_wait_timeout_seconds: int = 900
     trusted_devices: list[str] = field(default_factory=list)
+
+    def defaults_json(self) -> dict:
+        from dataclasses import asdict
+        return {"_comment": "No secrets belong in this file.", **asdict(self)}
 
     @classmethod
     def load(cls, path: Path) -> "Config":

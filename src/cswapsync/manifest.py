@@ -11,7 +11,7 @@ import uuid
 from dataclasses import asdict, dataclass, field, fields
 from datetime import datetime, timezone
 
-from settings import IntegrityError
+from .settings import IntegrityError
 
 SCHEMA_VERSION = 1
 

@@ -3,7 +3,7 @@
 # 'sync.sh post' after you are done (pushes and releases the lease).
 set -euo pipefail
 umask 077
-CS="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/cswapsync"
+CS="$(command -v cswapsync)" || { echo "cswapsync not installed: uv tool install cswapsync" >&2; exit 127; }
 case "${1:-}" in
   pre)  shift; exec "$CS" pull "$@" ;;
   post) shift; exec "$CS" push "$@" ;;

@@ -1,33 +1,19 @@
-# CSwapSync bootstrap (Windows 10/11): venv + deps, then the interactive wizard.
-#   powershell -ExecutionPolicy Bypass -File scripts\setup.ps1
-#   powershell -ExecutionPolicy Bypass -File scripts\setup.ps1 -NoWizard
-param([switch]$NoWizard)
+# Install (or upgrade) the cswapsync tool on Windows, then run the interactive wizard.
+#   powershell -ExecutionPolicy Bypass -File scripts\setup.ps1          (from this checkout)
+#   powershell -ExecutionPolicy Bypass -File scripts\setup.ps1 -Pypi    (from PyPI)
+# Data (keys, config, backups) stays in %USERPROFILE%\CSwapSync (or $env:CSWAPSYNC_HOME).
+param([switch]$Pypi, [switch]$NoWizard)
 $ErrorActionPreference = "Stop"
-$Root = Split-Path -Parent $PSScriptRoot
-$Venv = Join-Path $Root ".venv"
-$Py = Join-Path $Venv "Scripts\python.exe"
-
-foreach ($d in "config","credentials","staging","logs","backups") {
-  New-Item -ItemType Directory -Force -Path (Join-Path $Root $d) | Out-Null
-}
-# credentials\ readable by this user only
-icacls (Join-Path $Root "credentials") /inheritance:r /grant:r "${env:USERNAME}:(OI)(CI)F" /Q | Out-Null
-
-Write-Host "==> python venv + dependencies"
-if (-not (Test-Path $Py)) {
-  if (Get-Command uv -ErrorAction SilentlyContinue) { uv venv -q $Venv --python 3.12 }
-  elseif (Get-Command py -ErrorAction SilentlyContinue) { py -3 -m venv $Venv }
-  else { python -m venv $Venv }
-}
+$Src = if ($Pypi) { "cswapsync" } else { Split-Path -Parent $PSScriptRoot }
 if (Get-Command uv -ErrorAction SilentlyContinue) {
-  uv pip install -q --python $Py -r (Join-Path $Root "requirements.txt")
+  uv tool install --force --python 3.12 $Src
+} elseif (Get-Command pipx -ErrorAction SilentlyContinue) {
+  pipx install --force $Src
 } else {
-  & $Py -m pip install -q -r (Join-Path $Root "requirements.txt")
+  throw "need uv (https://docs.astral.sh/uv/) or pipx"
 }
-if ($LASTEXITCODE -ne 0) { throw "dependency install failed" }
-
+if ($LASTEXITCODE -ne 0) { throw "install failed" }
 if (-not $NoWizard) {
-  $env:CSWAPSYNC_HOME = $Root
-  & $Py (Join-Path $Root "src\cli.py") setup
+  cswapsync setup
   exit $LASTEXITCODE
 }

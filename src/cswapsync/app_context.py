@@ -4,13 +4,13 @@ Shared by the CLI and the setup wizard.
 """
 from __future__ import annotations
 
-from cswap_adapter import CswapAdapter
-from encryption import Crypto, DevicePublicKey, KeyManager, parse_bundle
-from google_drive import DriveStore, build_service, load_credentials
-from logging_config import setup_logging
-from settings import (Config, ConfigurationError, Device, Paths, State, atomic_write_json,
+from .cswap_adapter import CswapAdapter
+from .encryption import Crypto, DevicePublicKey, KeyManager, parse_bundle
+from .google_drive import DriveStore, build_service, load_credentials
+from .logging_config import setup_logging
+from .settings import (Config, ConfigurationError, Device, Paths, State, atomic_write_json,
                       read_json)
-from sync_manager import SyncManager
+from .sync_manager import SyncManager
 
 
 class App:

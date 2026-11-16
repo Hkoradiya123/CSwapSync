@@ -1,0 +1,51 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "cswapsync"
+dynamic = ["version"]
+description = "Encrypted sync of CSwap (claude-swap) accounts between devices via Google Drive, with an exclusive device session lease"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.10"
+authors = [{ name = "Hkoradiya123" }]
+keywords = ["claude", "claude-swap", "cswap", "google-drive", "age", "sync"]
+classifiers = [
+  "Environment :: Console",
+  "Operating System :: POSIX :: Linux",
+  "Operating System :: Microsoft :: Windows",
+  "Programming Language :: Python :: 3",
+  "Topic :: Security :: Cryptography",
+]
+dependencies = [
+  "google-api-python-client>=2.100",
+  "google-auth>=2.20",
+  "google-auth-oauthlib>=1.0",
+  "google-auth-httplib2>=0.2",
+  "pyrage>=1.1",
+  "cryptography>=41",
+  "rich>=13",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8"]
+
+[project.scripts]
+cswapsync = "cswapsync.cli:main"
+
+[project.urls]
+Repository = "https://github.com/Hkoradiya123/CSwapSync"
+
+[tool.hatch.version]
+path = "src/cswapsync/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/cswapsync"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/cswapsync", "tests", "README.md", "LICENSE", "pyproject.toml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

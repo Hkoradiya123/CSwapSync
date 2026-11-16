@@ -2,8 +2,8 @@ import json
 
 import pytest
 
-from manifest import Manifest
-from settings import (CloudUnavailableError, ConflictError, CswapBusyError, IntegrityError,
+from cswapsync.manifest import Manifest
+from cswapsync.settings import (CloudUnavailableError, ConflictError, CswapBusyError, IntegrityError,
                       LeaseError, SyncError)
 
 
@@ -222,7 +222,7 @@ def test_failed_import_auto_rolls_back(pair):
 
 
 def test_restore_refused_while_cswap_busy(pair, monkeypatch):
-    import cswap_adapter
+    from cswapsync import cswap_adapter
     dell, hp = pair
     first_push(dell)
     monkeypatch.setattr(cswap_adapter, "_process_names",
@@ -232,7 +232,7 @@ def test_restore_refused_while_cswap_busy(pair, monkeypatch):
 
 
 def test_restore_refused_while_claude_running(pair, monkeypatch):
-    import cswap_adapter
+    from cswapsync import cswap_adapter
     dell, hp = pair
     first_push(dell)
     hp.cswap.set_tag("hp-local")
@@ -243,7 +243,7 @@ def test_restore_refused_while_claude_running(pair, monkeypatch):
 
 
 def test_own_cswapsync_wrapper_not_detected_as_busy(pair, monkeypatch):
-    import cswap_adapter
+    from cswapsync import cswap_adapter
     dell, _ = pair
     monkeypatch.setattr(cswap_adapter, "_process_names",
                         lambda: [("bash", ["bash", "/home/x/.local/bin/cswapsync", "push"])])

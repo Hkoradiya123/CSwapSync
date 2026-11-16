@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from settings import LeaseError, RefreshNotHealthyError
+from cswapsync.settings import LeaseError, RefreshNotHealthyError
 
 
 def write_log(dev, body: str, minutes_ago: int = 1, exit_code: int = 0):
@@ -95,7 +95,7 @@ def test_conflict_during_post_refresh_releases_lease(pair):
     hp.mgr.push()                     # cloud r1 from HP, Dell never pulled
     dell.cswap.set_tag("dell-local")
     write_log(dell, GOOD)
-    from settings import ConflictError
+    from cswapsync.settings import ConflictError
     with pytest.raises(ConflictError):
         dell.mgr.post_refresh()
     assert dell.mgr.lease.holder() is None

@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 from typing import Callable
 
-from settings import IS_WINDOWS, Config, Paths, is_private
+from .settings import IS_WINDOWS, Config, Paths, is_private
 
 OK, WARN, FAIL = "OK", "WARN", "FAIL"
 TESTED_CSWAP = "0.29."

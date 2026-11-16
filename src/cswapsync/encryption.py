@@ -26,7 +26,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import (
     Ed25519PublicKey,
 )
 
-from settings import (
+from .settings import (
     ConfigurationError,
     IntegrityError,
     atomic_write_bytes,

@@ -6,16 +6,15 @@ from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-import cswap_adapter  # noqa: E402
-from cswap_adapter import CswapAdapter  # noqa: E402
-from encryption import Crypto, KeyManager  # noqa: E402
+from cswapsync import cswap_adapter  # noqa: E402
+from cswapsync.cswap_adapter import CswapAdapter  # noqa: E402
+from cswapsync.encryption import Crypto, KeyManager  # noqa: E402
 from fakes import FakeCswap, FakeDriveService  # noqa: E402
-from google_drive import DriveStore  # noqa: E402
-from settings import Config, Device, Paths, State  # noqa: E402
-from sync_manager import SyncManager  # noqa: E402
+from cswapsync.google_drive import DriveStore  # noqa: E402
+from cswapsync.settings import Config, Device, Paths, State  # noqa: E402
+from cswapsync.sync_manager import SyncManager  # noqa: E402
 
 
 @pytest.fixture(autouse=True)

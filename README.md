@@ -29,17 +29,20 @@ uploaded and never logged.
 ## Layout
 
 ```
-src/settings.py        paths, config, state, atomic writes, error classes
-src/logging_config.py  rotating log with secret redaction
-src/encryption.py      device keys, age encrypt/decrypt, Ed25519 sign/verify
-src/manifest.py        signed backup manifest + digests
-src/cswap_adapter.py   ONLY module that runs cswap (verified against 0.29.0)
-src/google_drive.py    OAuth (drive.file), retry/backoff, stable-id storage
-src/lease.py           session lease
-src/sync_manager.py    backup / push / pull / restore / post-refresh orchestration
-src/doctor.py          diagnostics
-src/cli.py             `cswapsync` command
-scripts/               setup + shell wrappers + systemd units
+src/cswapsync/settings.py        paths, config, state, atomic writes, error classes
+src/cswapsync/logging_config.py  rotating log with secret redaction
+src/cswapsync/encryption.py      device keys, age encrypt/decrypt, Ed25519 sign/verify
+src/cswapsync/manifest.py        signed backup manifest + digests
+src/cswapsync/cswap_adapter.py   ONLY module that runs cswap (verified against 0.29.0)
+src/cswapsync/google_drive.py    OAuth (drive.file), retry/backoff, stable-id storage
+src/cswapsync/lease.py           session lease
+src/cswapsync/sync_manager.py    backup / push / pull / restore / post-refresh orchestration
+src/cswapsync/doctor.py          diagnostics
+src/cswapsync/cli.py             `cswapsync` command
+src/cswapsync/setup_wizard.py   `cswapsync setup` (sender/receiver)
+src/cswapsync/platform_setup.py systemd/ACL helpers
+src/cswapsync/systemd/          unit templates (binary path filled at install)
+scripts/               install scripts + shell wrappers
 ```
 
 Drive: `CSwap-Sync/{current,history,status}/`. `current/manifest.json` is the
@@ -47,12 +50,23 @@ commit point and is written last. `history/` keeps at least 10 verified backups.
 
 ## Install / setup (Linux and Windows)
 
+Install like claude-swap (Linux and Windows), then run the wizard:
+
 ```bash
-scripts/setup.sh                                          # Linux
-powershell -ExecutionPolicy Bypass -File scripts\setup.ps1  # Windows
+uv tool install cswapsync        # or: pipx install cswapsync
+cswapsync setup
 ```
-Both create the venv, install dependencies and start the interactive wizard
-(`cswapsync setup`, re-runnable any time). First question: **Sender** (Claude
+Before the PyPI release, install from GitHub instead:
+`uv tool install git+https://github.com/Hkoradiya123/CSwapSync`.
+Upgrade: `uv tool upgrade cswapsync`, then `cswapsync setup` again (it re-points
+the systemd units at the new binary if needed).
+
+Code lives in the tool's own venv; data (keys, config, backups, logs) lives in
+`~/CSwapSync` (`%USERPROFILE%\CSwapSync` on Windows) or `$CSWAPSYNC_HOME`, so
+upgrades never touch it. `scripts/setup.sh` / `scripts/setup.ps1` do the same
+install from a checkout.
+
+The wizard (`cswapsync setup`, re-runnable any time) asks first: **Sender** (Claude
 accounts already live here, e.g. Dell) or **Receiver** (accounts come from Drive,
 e.g. HP). The wizard then only asks for what is missing:
 
@@ -68,8 +82,6 @@ e.g. HP). The wizard then only asks for what is missing:
 | restore accounts (rollback snapshot first; bootstrap if no local accounts) | – | asks first |
 | delete stray plaintext export | asks | – |
 | test (doctor + cloud download/verify/decrypt) | ✓ | ✓ |
-
-Windows launcher: `scripts\cswapsync.cmd <command>`.
 
 Order for a new pair: sender setup → receiver setup (it shows its key and asks for
 the sender's) → on sender `cswapsync trust '<receiver key>'` + `cswapsync push` →
@@ -146,7 +158,8 @@ push/pull stop with exit 4, keeping both states (`backups/conflict-*`,
 ## Tests
 
 ```bash
-.venv/bin/python -m pytest -q tests
+uv venv && uv pip install -r requirements.txt -e .
+.venv/bin/python -m pytest -q
 ```
 Fake Drive + fake cswap with dummy tokens. Real Drive is not exercised by the
 test suite.

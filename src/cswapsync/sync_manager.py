@@ -20,18 +20,18 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable
 
-from cswap_adapter import CswapAdapter, PayloadSummary, validate_export_payload
-from encryption import Crypto
-from google_drive import DriveStore
-from lease import LeaseManager
-from logging_config import get_logger
-from manifest import (SCHEMA_VERSION, Manifest, content_digest, new_backup_id,
+from .cswap_adapter import CswapAdapter, PayloadSummary, validate_export_payload
+from .encryption import Crypto
+from .google_drive import DriveStore
+from .lease import LeaseManager
+from .logging_config import get_logger
+from .manifest import (SCHEMA_VERSION, Manifest, content_digest, new_backup_id,
                       sha256_hex, utc_now_iso)
-from settings import (Config, ConflictError, Device, IntegrityError, LeaseError,
+from .settings import (Config, ConflictError, Device, IntegrityError, LeaseError,
                       Paths, RefreshNotHealthyError, State, SyncError, atomic_write_bytes)
 
 log = get_logger("sync")
-APP_VERSION = "1.0.0"
+from . import __version__ as APP_VERSION  # noqa: E402
 AGE_MIME = "application/octet-stream"
 JSON_MIME = "application/json"
 LOCAL_FAMILIES = {

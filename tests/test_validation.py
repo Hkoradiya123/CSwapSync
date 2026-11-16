@@ -2,10 +2,10 @@ import json
 
 import pytest
 
-from cswap_adapter import validate_export_payload
+from cswapsync.cswap_adapter import validate_export_payload
 from fakes import make_envelope
-from manifest import Manifest, content_digest
-from settings import IntegrityError
+from cswapsync.manifest import Manifest, content_digest
+from cswapsync.settings import IntegrityError
 
 
 def raw(env):
@@ -74,7 +74,19 @@ def test_manifest_signed_before_recipients_field_still_verifies(pair):
     legacy = json.loads(m.to_bytes())
     legacy.pop("recipients")
     body = {k: v for k, v in legacy.items() if k != "signature"}
-    from manifest import canonical_json
+    from cswapsync.manifest import canonical_json
     legacy["signature"] = dell.mgr.crypto.sign(canonical_json(body))
     parsed = Manifest.from_bytes(json.dumps(legacy).encode())
     dell.mgr.crypto.verify("dell-ubuntu", parsed.signing_bytes(), parsed.signature)
+
+
+def test_config_example_matches_code_defaults():
+    """config/config.example.json is documentation; it must not drift from Config()."""
+    from pathlib import Path
+    from cswapsync.settings import Config
+    example = json.loads((Path(__file__).resolve().parent.parent / "config" /
+                          "config.example.json").read_text())
+    example.pop("_comment")
+    defaults = Config().defaults_json()
+    defaults.pop("_comment")
+    assert example == defaults

@@ -17,9 +17,9 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Callable
 
-from google_drive import DriveStore
-from logging_config import get_logger
-from settings import LeaseError
+from .google_drive import DriveStore
+from .logging_config import get_logger
+from .settings import LeaseError
 
 log = get_logger("lease")
 LEASE_FILE = "lease.json"

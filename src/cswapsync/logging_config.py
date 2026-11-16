@@ -10,7 +10,7 @@ import re
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
-from settings import secure_chmod
+from .settings import secure_chmod
 
 _PATTERNS = [
     re.compile(r"sk-ant-[A-Za-z0-9_\-]+"),                 # Anthropic OAuth / API keys

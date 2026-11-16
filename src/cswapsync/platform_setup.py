@@ -12,7 +12,7 @@ import socket
 import subprocess
 from pathlib import Path
 
-from settings import IS_WINDOWS, ConfigurationError
+from .settings import IS_WINDOWS, ConfigurationError
 
 UNIT_DIR = Path.home() / ".config" / "systemd" / "user"
 REFRESH_UNIT = "cswap-refresh.service"
@@ -76,34 +76,79 @@ def client_project(path: Path) -> str:
 
 
 # --------------------------------------------------------------------------- Linux hooks
+GATE_DROPIN = "10-cswapsync-lease-gate.conf"
+
+
+def cswapsync_bin() -> str:
+    """Absolute path of the installed `cswapsync` entry point (uv tool / pipx / venv)."""
+    import sys
+    found = shutil.which("cswapsync")
+    if found:
+        return str(Path(found).resolve()) if not IS_WINDOWS else found
+    candidate = Path(sys.argv[0])
+    if candidate.name.startswith("cswapsync") and candidate.exists():
+        return str(candidate.resolve())
+    raise ConfigurationError("installed 'cswapsync' command not found on PATH; install with "
+                             "'uv tool install' or 'pipx install' first")
+
+
+def render_unit(name: str, binary: str) -> str:
+    from importlib.resources import files
+    text = (files("cswapsync") / "systemd" / name).read_text(encoding="utf-8")
+    if " " in binary:
+        binary = f'"{binary}"'
+    return text.replace("@CSWAPSYNC_BIN@", binary)
+
+
 def has_refresh_unit() -> bool:
     return not IS_WINDOWS and (UNIT_DIR / REFRESH_UNIT).is_file()
 
 
-def refresh_hook_installed() -> bool:
-    return (UNIT_DIR / f"{REFRESH_UNIT}.d" / SYNC_DROPIN).is_file()
+def _targets(gate: bool) -> dict[Path, str]:
+    dropins = UNIT_DIR / f"{REFRESH_UNIT}.d"
+    out = {dropins / SYNC_DROPIN: SYNC_DROPIN}
+    out.update({UNIT_DIR / unit: unit for unit in HEARTBEAT_UNITS})
+    if gate:
+        out[dropins / GATE_DROPIN] = GATE_DROPIN
+    return out
+
+
+def refresh_hook_installed(gate: bool = False) -> bool:
+    """True only when every unit exists AND points at the current binary."""
+    try:
+        binary = cswapsync_bin()
+    except ConfigurationError:
+        return False
+    return all(dst.is_file() and dst.read_text(encoding="utf-8") == render_unit(src, binary)
+               for dst, src in _targets(gate).items())
+
+
+def lease_gate_installed() -> bool:
+    return (UNIT_DIR / f"{REFRESH_UNIT}.d" / GATE_DROPIN).is_file()
 
 
 def _systemctl(*args: str) -> None:
     subprocess.run(["systemctl", "--user", *args], capture_output=True, check=False, timeout=30)
 
 
-def install_refresh_hook(root: Path) -> list[str]:
-    """Wire Drive sync into the existing cswap-refresh.service (drop-in, no edits)."""
+def install_refresh_hook(gate: bool = False) -> list[str]:
+    """Wire Drive sync into the existing cswap-refresh.service (drop-ins, no edits).
+
+    Our own unit files are re-rendered (e.g. after the binary moved); foreign
+    files with the same name are never overwritten.
+    """
     if not has_refresh_unit():
         raise ConfigurationError("cswap-refresh.service not found; nothing to hook into")
-    notes: list[str] = []
-    systemd_src = root / "scripts" / "systemd"
-    dropin_dir = UNIT_DIR / f"{REFRESH_UNIT}.d"
-    dropin_dir.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(systemd_src / SYNC_DROPIN, dropin_dir / SYNC_DROPIN)
-    for unit in HEARTBEAT_UNITS:
-        dst = UNIT_DIR / unit
-        src = systemd_src / unit
-        if dst.exists() and dst.read_bytes() != src.read_bytes():
-            notes.append(f"{dst.name} differs from project copy; left as is")
+    binary = cswapsync_bin()
+    notes: list[str] = [f"units use {binary}"]
+    for dst, src in _targets(gate).items():
+        content = render_unit(src, binary)
+        if dst.exists() and "CSwapSync" not in dst.read_text(encoding="utf-8") \
+                and "cswapsync" not in dst.read_text(encoding="utf-8"):
+            notes.append(f"{dst.name} exists and is not ours; left as is")
             continue
-        shutil.copyfile(src, dst)
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        dst.write_text(content, encoding="utf-8")
     old = UNIT_DIR / "cswapsync-postrefresh.service"
     if old.exists():
         _systemctl("disable", old.name)
@@ -112,18 +157,3 @@ def install_refresh_hook(root: Path) -> list[str]:
     _systemctl("daemon-reload")
     _systemctl("enable", "--now", "cswapsync-heartbeat.timer")
     return notes
-
-
-def install_launcher(root: Path) -> str:
-    """Linux: ~/.local/bin/cswapsync symlink. Windows: instructions only (no PATH edits)."""
-    if IS_WINDOWS:
-        return f'run "{root / "scripts" / "cswapsync.cmd"}" (or add {root / "scripts"} to PATH)'
-    link = Path.home() / ".local" / "bin" / "cswapsync"
-    target = root / "scripts" / "cswapsync"
-    if link.is_symlink() and link.resolve() == target.resolve():
-        return f"{link} already linked"
-    if link.exists() or link.is_symlink():
-        return f"{link} exists and is not ours; left untouched"
-    link.parent.mkdir(parents=True, exist_ok=True)
-    link.symlink_to(target)
-    return f"linked {link}"

@@ -2,8 +2,8 @@ import os
 
 import pytest
 
-from encryption import Crypto, KeyManager, parse_bundle
-from settings import ConfigurationError, IntegrityError
+from cswapsync.encryption import Crypto, KeyManager, parse_bundle
+from cswapsync.settings import ConfigurationError, IntegrityError
 
 
 def test_roundtrip_and_peer_can_decrypt(pair):

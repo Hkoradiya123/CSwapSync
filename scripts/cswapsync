@@ -1,8 +1,0 @@
-#!/usr/bin/env bash
-# Launcher: runs the CLI inside the project venv. Symlinked to ~/.local/bin/cswapsync.
-set -euo pipefail
-umask 077
-SELF="$(readlink -f "${BASH_SOURCE[0]}")"
-ROOT="$(cd "$(dirname "$SELF")/.." && pwd)"
-export CSWAPSYNC_HOME="$ROOT"
-exec "$ROOT/.venv/bin/python" "$ROOT/src/cli.py" "$@"

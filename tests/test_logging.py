@@ -1,4 +1,4 @@
-from logging_config import redact
+from cswapsync.logging_config import redact
 
 
 def test_redacts_known_secret_shapes():

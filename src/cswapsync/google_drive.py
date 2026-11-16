@@ -21,9 +21,9 @@ import time
 from pathlib import Path
 from typing import Any, Callable
 
-from logging_config import get_logger
-from manifest import sha256_hex
-from settings import CloudUnavailableError, ConfigurationError, IntegrityError, \
+from .logging_config import get_logger
+from .manifest import sha256_hex
+from .settings import CloudUnavailableError, ConfigurationError, IntegrityError, \
     atomic_write_bytes
 
 log = get_logger("drive")
