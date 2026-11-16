@@ -8,7 +8,7 @@ from __future__ import annotations
 import hashlib
 import json
 import uuid
-from dataclasses import asdict, dataclass, fields
+from dataclasses import asdict, dataclass, field, fields
 from datetime import datetime, timezone
 
 from settings import IntegrityError
@@ -60,11 +60,14 @@ class Manifest:
     history_file_name: str
     history_file_id: str = ""
     conflict: bool = False
+    recipients: list = field(default_factory=list)   # device ids able to decrypt
     signature: str = ""
 
     def signing_bytes(self) -> bytes:
         body = asdict(self)
         body.pop("signature")
+        if not body["recipients"]:
+            body.pop("recipients")  # manifests written before this field existed
         return canonical_json(body)
 
     def to_bytes(self) -> bytes:
@@ -82,7 +85,7 @@ class Manifest:
             raise IntegrityError(f"unsupported manifest schema_version "
                                  f"{obj.get('schema_version')!r}")
         names = {f.name for f in fields(cls)}
-        required = names - {"history_file_id", "conflict", "signature"}
+        required = names - {"history_file_id", "conflict", "signature", "recipients"}
         missing = required - set(obj)
         if missing:
             raise IntegrityError(f"manifest missing fields: {sorted(missing)}")
@@ -100,6 +103,8 @@ class Manifest:
             "content_sha256": _is_sha(self.content_sha256),
             "backup_id": isinstance(self.backup_id, str) and len(self.backup_id) == 32,
             "device_id": isinstance(self.device_id, str) and bool(self.device_id),
+            "recipients": isinstance(self.recipients, list) and all(
+                isinstance(r, str) for r in self.recipients),
         }
         bad = [k for k, ok in checks.items() if not ok]
         if bad:

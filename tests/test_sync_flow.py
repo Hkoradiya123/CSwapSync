@@ -260,3 +260,17 @@ def test_restore_specific_cloud_revision(pair):
     verified = hp.mgr.fetch_history(1)
     hp.mgr.restore(verified)
     assert hp.cswap.tag() == "v1"
+
+
+def test_newly_trusted_device_forces_reencrypted_push(make_device, drive_service):
+    dell, hp = make_device("dell-ubuntu"), make_device("hp-win10")
+    hp.trust(dell)
+    m1 = first_push(dell)                       # encrypted to Dell only
+    assert m1.recipients == ["dell-ubuntu"]
+    with pytest.raises(IntegrityError, match="not encrypted to this device"):
+        hp.mgr.fetch_cloud(hp.mgr.cloud_manifest())
+    dell.trust(hp)                              # same tokens, new recipient
+    dell.mgr.lease.acquire()
+    m2 = dell.mgr.push()
+    assert m2 is not None and m2.recipients == ["dell-ubuntu", "hp-win10"]
+    assert hp.mgr.fetch_cloud(hp.mgr.cloud_manifest()).summary.account_count == 2

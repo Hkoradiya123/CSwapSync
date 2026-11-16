@@ -178,6 +178,8 @@ class FakeCswap:
         out, rc, err = b"", 0, b""
         if args == ["--version"]:
             out = b"cswap 0.29.0\n"
+        elif args == ["export", "-"] and self.envelope is None:
+            rc, err = 1, b"Error: no accounts to export"
         elif args == ["export", "-"]:
             self.export_counter += 1
             env = copy.deepcopy(self.envelope)
@@ -194,7 +196,9 @@ class FakeCswap:
                 {"number": n, "email": f"user{n}@example.test", "usageStatus": s}
                 for n, s in self.health.items()]}).encode()
         elif args == ["status", "--json"]:
-            out = json.dumps({"schemaVersion": 1, "active": {"number": 1}}).encode()
+            total = len(self.envelope["accounts"]) if self.envelope else 0
+            out = json.dumps({"schemaVersion": 1, "active": {"number": 1 if total else None},
+                              "totalManagedAccounts": total}).encode()
         elif args[:1] == ["switch"]:
             pass
         else:

@@ -5,4 +5,5 @@ google-auth-oauthlib==1.5.0
 google-auth-httplib2==0.4.4
 pyrage==1.4.0
 cryptography==50.0.2
+rich==15.0.0
 pytest==9.2.0

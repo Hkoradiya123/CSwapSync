@@ -3,6 +3,7 @@ credentials/*
 !credentials/.gitkeep
 config/config.json
 config/state.json
+config/device.json
 config/inventory.json
 staging/*
 !staging/.gitkeep

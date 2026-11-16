@@ -13,13 +13,10 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 os.umask(0o077)
 
-from cswap_adapter import CswapAdapter  # noqa: E402
+from app_context import App, trust_bundle  # noqa: E402
 from doctor import OK, cswap_version_check, print_results, run_doctor  # noqa: E402
-from encryption import Crypto, KeyManager, parse_bundle  # noqa: E402
-from google_drive import DriveStore, build_service, load_credentials  # noqa: E402
 from logging_config import setup_logging  # noqa: E402
-from settings import (Config, ConfigurationError, Device, Paths, ProcessLock,  # noqa: E402
-                      State, SyncError, atomic_write_json, read_json)
+from settings import Paths, ProcessLock, SyncError  # noqa: E402
 from sync_manager import SyncManager  # noqa: E402
 
 
@@ -28,6 +25,7 @@ def build_parser() -> argparse.ArgumentParser:
                                 "Google Drive with an exclusive device session lease.")
     p.add_argument("-v", "--verbose", action="store_true")
     sub = p.add_subparsers(dest="cmd", required=True)
+    sub.add_parser("setup", help="interactive first-time setup (sender or receiver)")
     sub.add_parser("status", help="local + cloud sync state and lease holder")
     pull = sub.add_parser("pull", help="PRE-session: take lease, verify cloud, optionally restore")
     pull.add_argument("--yes", action="store_true", help="actually restore the newer cloud state")
@@ -65,29 +63,6 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("lease-check", help="exit 0 if lease is free or ours, 1 if another "
                    "device holds it (systemd ExecCondition gate)")
     return p
-
-
-class App:
-    def __init__(self, verbose: bool):
-        self.paths = Paths()
-        self.paths.ensure()
-        self.log = setup_logging(self.paths.logs_dir, verbose)
-        self.config = Config.load(self.paths.config_file)
-        self.device = Device.load(self.paths.device_file)
-        self.state = State(self.paths.state_file)
-        self.keys = KeyManager(self.paths.credentials_dir, self.device.device_id)
-        self.adapter = CswapAdapter(self.config.cswap_path, self.config.refresh_service)
-
-    def drive(self, interactive: bool = False) -> DriveStore:
-        creds = load_credentials(self.paths.client_secret_file, self.paths.google_token_file,
-                                 interactive)
-        return DriveStore(build_service(creds), self.config.drive_folder_name,
-                          self.state.data["drive_ids"])
-
-    def manager(self) -> SyncManager:
-        crypto = Crypto(self.keys, self.config.trusted_devices)
-        return SyncManager(self.paths, self.config, self.device, self.state, self.adapter,
-                           crypto, self.drive)
 
 
 def cmd_status(app: App) -> int:
@@ -134,16 +109,9 @@ def cmd_doctor(app: App, health: bool, offline: bool) -> int:
 
 
 def cmd_trust(app: App, bundle: str) -> int:
-    peer = parse_bundle(bundle)
-    if peer.device_id == app.device.device_id:
-        raise ConfigurationError("that is this device's own key")
-    raw = read_json(app.paths.config_file, default={})
-    trusted = [b for b in raw.get("trusted_devices", [])
-               if parse_bundle(b).device_id != peer.device_id]
-    trusted.append(peer.bundle())
-    raw["trusted_devices"] = trusted
-    atomic_write_json(app.paths.config_file, raw)
-    print(f"trusted device '{peer.device_id}'. New backups will be encrypted to it.")
+    peer = trust_bundle(app.paths, app.device.device_id, bundle)
+    print(f"trusted device '{peer.device_id}'. New backups will be encrypted to it; "
+          f"run 'cswapsync push' so the current cloud backup is re-encrypted for it.")
     return 0
 
 
@@ -237,6 +205,17 @@ def cmd_restore(mgr: SyncManager, args: argparse.Namespace) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    if args.cmd == "setup":
+        from setup_wizard import UI, SetupWizard
+        paths = Paths()
+        paths.ensure()
+        setup_logging(paths.logs_dir, args.verbose)
+        try:
+            with ProcessLock(paths.lock_file):
+                return SetupWizard(paths, UI()).run()
+        except KeyboardInterrupt:
+            print("\nsetup cancelled; re-run 'cswapsync setup' any time")
+            return 130
     try:
         app = App(args.verbose)
         if args.cmd in ("status", "doctor", "keys", "trust"):

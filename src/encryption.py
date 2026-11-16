@@ -128,6 +128,9 @@ class Crypto:
                                          "using this device's id")
             self.trusted.setdefault(peer.device_id, peer)
 
+    def recipient_ids(self, self_only: bool = False) -> list[str]:
+        return [self.own.device_id] if self_only else sorted(self.trusted)
+
     @property
     def peer_ids(self) -> list[str]:
         return sorted(d for d in self.trusted if d != self.own.device_id)

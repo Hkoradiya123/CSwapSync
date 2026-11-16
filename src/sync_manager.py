@@ -97,7 +97,8 @@ class SyncManager:
             payload_sha256=sha256_hex(plaintext), content_sha256=digest,
             account_count=summary.account_count, application_version=APP_VERSION,
             cswap_version=summary.swap_version,
-            history_file_name=f"r{revision:06d}-{backup_id}.age", conflict=conflict)
+            history_file_name=f"r{revision:06d}-{backup_id}.age", conflict=conflict,
+            recipients=self.crypto.recipient_ids(self_only))
         return ciphertext, manifest
 
     def _sign(self, manifest: Manifest) -> Manifest:
@@ -190,7 +191,10 @@ class SyncManager:
         cloud = self.cloud_manifest()
         base = self.state.get("last_synced_revision")
 
-        if cloud and cloud.content_sha256 == digest:
+        # Same accounts AND same recipient devices -> nothing to do. A newly trusted
+        # device forces a re-encrypted upload even though no token changed.
+        if cloud and cloud.content_sha256 == digest and \
+                cloud.recipients == self.crypto.recipient_ids():
             log.info("cloud revision %d already holds this exact state; nothing to upload",
                      cloud.revision)
             self.state.set(last_synced_revision=cloud.revision, last_content_sha256=digest)
@@ -328,6 +332,8 @@ class SyncManager:
         if bootstrap:
             log.warning("bootstrap restore: no local accounts, no rollback snapshot")
             self.adapter.import_payload(verified.plaintext)
+            if verified.summary.active_slot in verified.summary.slots:
+                self.adapter.activate(verified.summary.active_slot)  # fresh device: no live login yet
             return None
         current_plain = self.adapter.export_payload()
         # Snapshot whatever exists now, even if it does not match expected_account_count.

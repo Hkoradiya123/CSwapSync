@@ -45,34 +45,42 @@ scripts/               setup + shell wrappers + systemd units
 Drive: `CSwap-Sync/{current,history,status}/`. `current/manifest.json` is the
 commit point and is written last. `history/` keeps at least 10 verified backups.
 
-## Install (Dell)
+## Install / setup (Linux and Windows)
 
 ```bash
-~/CSwapSync/scripts/setup.sh            # venv, deps, keys, launcher, systemd units
+scripts/setup.sh                                          # Linux
+powershell -ExecutionPolicy Bypass -File scripts\setup.ps1  # Windows
 ```
+Both create the venv, install dependencies and start the interactive wizard
+(`cswapsync setup`, re-runnable any time). First question: **Sender** (Claude
+accounts already live here, e.g. Dell) or **Receiver** (accounts come from Drive,
+e.g. HP). The wizard then only asks for what is missing:
 
-### Google OAuth (one time)
+| Step | Sender | Receiver |
+|---|---|---|
+| device id, cswap path, account count | ✓ | ✓ |
+| keypair (shows this device's public key) | ✓ | ✓ |
+| Google OAuth Desktop client JSON (auto-finds `~/.config/workspace-mcp/client_secret.json`, `~/Downloads/client_secret*.json`) | ✓ | ✓ same JSON as sender |
+| Google login (browser, `drive.file`) | ✓ | ✓ same Google account |
+| trust the other device's public key | optional | required |
+| hook Drive sync into `cswap-refresh.service` (Linux) | ✓ | – |
+| first push / read + verify cloud backup | push | read; if not encrypted to it, prints the exact `trust` + `push` to run on the sender, then Retry |
+| restore accounts (rollback snapshot first; bootstrap if no local accounts) | – | asks first |
+| delete stray plaintext export | asks | – |
+| test (doctor + cloud download/verify/decrypt) | ✓ | ✓ |
 
-1. Google Cloud Console → APIs & Services → enable **Google Drive API**.
-2. OAuth consent screen: External/Internal, add your Google account as test
-   user, scope `.../auth/drive.file`.
-3. Credentials → Create OAuth client ID → **Desktop app** → download JSON.
-4. `install -m 600 ~/Downloads/client_secret_*.json ~/CSwapSync/credentials/google-client-secret.json`
-5. `cswapsync auth` (browser consent) then `cswapsync doctor`.
+Windows launcher: `scripts\cswapsync.cmd <command>`.
 
-The HP must use the **same client JSON and the same Google account**:
-`drive.file` only shows files created by the same OAuth app.
+Order for a new pair: sender setup → receiver setup (it shows its key and asks for
+the sender's) → on sender `cswapsync trust '<receiver key>'` + `cswapsync push` →
+Retry on the receiver. A newly trusted device always forces a re-encrypted push.
 
-### Key exchange with HP (one time)
+### Google OAuth client (one time)
 
-```bash
-cswapsync keys show                 # public bundle: cswapsync1:dell-ubuntu:age1...:...
-```
-Send that string to the HP over a channel you trust (it is public, but an
-attacker who swaps it in transit could make you trust *their* key). Verify it
-by reading the first/last 8 characters aloud. Then on the HP run
-`cswapsync trust '<dell bundle>'`, and on the Dell `cswapsync trust '<hp bundle>'`.
-Private keys (`credentials/age-identity.txt`, `signing-key.pem`) never move.
+Cloud Console: enable **Google Drive API**, consent screen with scope `drive.file`,
+Credentials → OAuth client ID → **Desktop app** → download JSON. Both devices must
+use the same JSON and the same Google account (`drive.file` only shows files made
+by the same OAuth app).
 
 ## Daily workflow
 

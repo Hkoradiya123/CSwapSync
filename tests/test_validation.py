@@ -61,3 +61,20 @@ def test_manifest_schema_rejections():
         Manifest.from_bytes(json.dumps({"schema_version": 99}).encode())
     with pytest.raises(IntegrityError, match="missing"):
         Manifest.from_bytes(json.dumps({"schema_version": 1}).encode())
+
+
+def test_manifest_signed_before_recipients_field_still_verifies(pair):
+    """Cloud r1 on the real Drive was signed before 'recipients' existed."""
+    dell, _ = pair
+    m = Manifest(schema_version=1, backup_id="a" * 32, revision=1, parent_revision=None,
+                 device_id="dell-ubuntu", created_at_utc="2026-11-16T00:00:00Z",
+                 encrypted_file_sha256="0" * 64, payload_sha256="1" * 64,
+                 content_sha256="2" * 64, account_count=2, application_version="1.0.0",
+                 cswap_version="0.29.0", history_file_name="r000001-x.age")
+    legacy = json.loads(m.to_bytes())
+    legacy.pop("recipients")
+    body = {k: v for k, v in legacy.items() if k != "signature"}
+    from manifest import canonical_json
+    legacy["signature"] = dell.mgr.crypto.sign(canonical_json(body))
+    parsed = Manifest.from_bytes(json.dumps(legacy).encode())
+    dell.mgr.crypto.verify("dell-ubuntu", parsed.signing_bytes(), parsed.signature)

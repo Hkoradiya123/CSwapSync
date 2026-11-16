@@ -1,0 +1,129 @@
+"""OS-specific setup helpers used by the setup wizard (Linux + Windows).
+
+Everything here is idempotent and refuses to overwrite files it did not write.
+"""
+from __future__ import annotations
+
+import json
+import os
+import re
+import shutil
+import socket
+import subprocess
+from pathlib import Path
+
+from settings import IS_WINDOWS, ConfigurationError
+
+UNIT_DIR = Path.home() / ".config" / "systemd" / "user"
+REFRESH_UNIT = "cswap-refresh.service"
+SYNC_DROPIN = "20-cswapsync-sync.conf"
+HEARTBEAT_UNITS = ("cswapsync-heartbeat.service", "cswapsync-heartbeat.timer")
+STRAY_EXPORTS = [Path.home() / "cswap-accounts-export.json"]
+
+
+def default_device_id(role: str) -> str:
+    host = re.sub(r"[^a-z0-9-]+", "-", socket.gethostname().lower()).strip("-")[:24]
+    return f"{host or 'device'}-{role}"
+
+
+def valid_device_id(value: str) -> bool:
+    return bool(value) and len(value) <= 40 and value.replace("-", "").isalnum()
+
+
+def restrict_to_owner(path: Path) -> None:
+    """chmod 700/600 on POSIX; on Windows strip inherited ACLs, grant only this user."""
+    if not path.exists():
+        return
+    if IS_WINDOWS:
+        user = os.environ.get("USERNAME", "")
+        if user:
+            subprocess.run(["icacls", str(path), "/inheritance:r", "/grant:r",
+                            f"{user}:(OI)(CI)F" if path.is_dir() else f"{user}:F", "/T", "/Q"],
+                           capture_output=True, check=False, timeout=30)
+        return
+    os.chmod(path, 0o700 if path.is_dir() else 0o600)
+
+
+def find_cswap() -> str | None:
+    found = shutil.which("cswap")
+    if found:
+        return found
+    exe = "cswap.exe" if IS_WINDOWS else "cswap"
+    candidate = Path.home() / ".local" / "bin" / exe
+    return str(candidate) if candidate.exists() else None
+
+
+def client_secret_candidates() -> list[Path]:
+    home = Path.home()
+    paths = [home / ".config" / "workspace-mcp" / "client_secret.json"]
+    downloads = home / "Downloads"
+    if downloads.is_dir():
+        paths += sorted(downloads.glob("client_secret*.json"), reverse=True)
+    return [p for p in paths if p.is_file() and is_desktop_client(p)]
+
+
+def is_desktop_client(path: Path) -> bool:
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    return isinstance(data, dict) and isinstance(data.get("installed"), dict) \
+        and bool(data["installed"].get("client_id"))
+
+
+def client_project(path: Path) -> str:
+    return json.loads(path.read_text(encoding="utf-8"))["installed"].get("project_id", "?")
+
+
+# --------------------------------------------------------------------------- Linux hooks
+def has_refresh_unit() -> bool:
+    return not IS_WINDOWS and (UNIT_DIR / REFRESH_UNIT).is_file()
+
+
+def refresh_hook_installed() -> bool:
+    return (UNIT_DIR / f"{REFRESH_UNIT}.d" / SYNC_DROPIN).is_file()
+
+
+def _systemctl(*args: str) -> None:
+    subprocess.run(["systemctl", "--user", *args], capture_output=True, check=False, timeout=30)
+
+
+def install_refresh_hook(root: Path) -> list[str]:
+    """Wire Drive sync into the existing cswap-refresh.service (drop-in, no edits)."""
+    if not has_refresh_unit():
+        raise ConfigurationError("cswap-refresh.service not found; nothing to hook into")
+    notes: list[str] = []
+    systemd_src = root / "scripts" / "systemd"
+    dropin_dir = UNIT_DIR / f"{REFRESH_UNIT}.d"
+    dropin_dir.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(systemd_src / SYNC_DROPIN, dropin_dir / SYNC_DROPIN)
+    for unit in HEARTBEAT_UNITS:
+        dst = UNIT_DIR / unit
+        src = systemd_src / unit
+        if dst.exists() and dst.read_bytes() != src.read_bytes():
+            notes.append(f"{dst.name} differs from project copy; left as is")
+            continue
+        shutil.copyfile(src, dst)
+    old = UNIT_DIR / "cswapsync-postrefresh.service"
+    if old.exists():
+        _systemctl("disable", old.name)
+        old.unlink()
+        notes.append("removed old separate cswapsync-postrefresh.service")
+    _systemctl("daemon-reload")
+    _systemctl("enable", "--now", "cswapsync-heartbeat.timer")
+    return notes
+
+
+def install_launcher(root: Path) -> str:
+    """Linux: ~/.local/bin/cswapsync symlink. Windows: instructions only (no PATH edits)."""
+    if IS_WINDOWS:
+        return f'run "{root / "scripts" / "cswapsync.cmd"}" (or add {root / "scripts"} to PATH)'
+    link = Path.home() / ".local" / "bin" / "cswapsync"
+    target = root / "scripts" / "cswapsync"
+    if link.is_symlink() and link.resolve() == target.resolve():
+        return f"{link} already linked"
+    if link.exists() or link.is_symlink():
+        return f"{link} exists and is not ours; left untouched"
+    link.parent.mkdir(parents=True, exist_ok=True)
+    link.symlink_to(target)
+    return f"linked {link}"

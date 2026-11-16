@@ -220,7 +220,7 @@ class Device:
     def load(cls, path: Path) -> "Device":
         raw = read_json(path)
         if not isinstance(raw, dict):
-            raise ConfigurationError(f"{path} missing; run scripts/setup.sh")
+            raise ConfigurationError(f"{path} missing; run: cswapsync setup")
         device_id = raw.get("device_id", "")
         if not isinstance(device_id, str) or not device_id.replace("-", "").isalnum():
             raise ConfigurationError("device.json device_id must be alphanumeric/dashes")
