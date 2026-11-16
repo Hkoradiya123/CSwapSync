@@ -105,9 +105,24 @@ Works once the package is on PyPI ([Releasing](#releasing)). Until then a bare
 name fails: uv/pipx look bare names up on PyPI, not on GitHub, and `cswapsync`
 is not there yet.
 
-Upgrade: `uv tool upgrade cswapsync` (or re-run the `git+` install with `--force`),
-then `cswapsync setup` again (it re-points the systemd units at the new binary if
-needed).
+### Upgrade
+
+```bash
+uv tool upgrade cswapsync     # or: pipx upgrade cswapsync
+cswapsync setup               # only if the binary moved: re-points the systemd units
+```
+
+What `upgrade` picks up depends on how the tool was installed (see
+`~/.local/share/uv/tools/cswapsync/uv-receipt.toml`):
+
+| Installed from | `uv tool upgrade` |
+|---|---|
+| `git+https://github.com/...` (A) | fetches the latest commit of `main` |
+| PyPI or own index (C, D) | newest released version |
+| zip archive (B, Windows default) | not verified; if it says "Nothing to upgrade", re-run the install with `--force` |
+| local wheel / checkout path | never sees GitHub changes; reinstall from `git+https://...` |
+
+Your data in `~/CSwapSync` is never touched by an upgrade.
 
 Code lives in the tool's own venv; data (keys, config, backups, logs) lives in
 `~/CSwapSync` (`%USERPROFILE%\CSwapSync` on Windows) or `$CSWAPSYNC_HOME`, so
