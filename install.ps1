@@ -4,7 +4,8 @@
 #   $env:CSWAPSYNC_USE_INDEX=1; irm .../install.ps1 | iex
 # Needs uv (preferred) or pipx. Data lives in %USERPROFILE%\CSwapSync.
 $ErrorActionPreference = "Stop"
-$Repo = "git+https://github.com/Hkoradiya123/CSwapSync"
+# zip archive instead of git+https: works without Git installed
+$Repo = "cswapsync @ https://github.com/Hkoradiya123/CSwapSync/archive/refs/heads/main.zip"
 $IndexUrl = "https://hkoradiya123.github.io/CSwapSync/simple/"
 
 if (Get-Command uv -ErrorAction SilentlyContinue) {

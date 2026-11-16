@@ -5,7 +5,8 @@
 #   curl -LsSf .../install.sh | sh -s -- --no-setup    # install only
 # Needs uv (preferred) or pipx. Never stores secrets; data lives in ~/CSwapSync.
 set -eu
-REPO="git+https://github.com/Hkoradiya123/CSwapSync"
+# zip archive instead of git+https: works without git installed
+REPO="cswapsync @ https://github.com/Hkoradiya123/CSwapSync/archive/refs/heads/main.zip"
 INDEX_URL="https://hkoradiya123.github.io/CSwapSync/simple/"
 USE_INDEX=0; SETUP=1
 for arg in "$@"; do

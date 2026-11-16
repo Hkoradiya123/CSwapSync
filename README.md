@@ -59,6 +59,8 @@ uv tool install git+https://github.com/Hkoradiya123/CSwapSync
 # or: pipx install git+https://github.com/Hkoradiya123/CSwapSync
 cswapsync setup
 ```
+No Git on the machine (common on Windows)? Use the zip archive instead:
+`uv tool install "cswapsync @ https://github.com/Hkoradiya123/CSwapSync/archive/refs/heads/main.zip"`
 
 **B. One-line installer** (installs via uv/pipx, then starts the wizard)
 
