@@ -199,3 +199,25 @@ def test_config_step_expands_tilde_in_cswap_path(env):
         return cswap(cmd, **kw)
     SetupWizard(make("dell"), ScriptedUI(sender_answers()), runner=runner).run()
     assert seen and not any(c.startswith("~") for c in seen)
+
+
+class _ExportOnly:
+    def __init__(self, result):
+        self.result = result
+
+    def export_payload(self):
+        if isinstance(self.result, Exception):
+            raise self.result
+        return self.result
+
+
+def test_has_local_accounts_treats_broken_local_slots_as_nothing_to_preserve():
+    from fakes import make_envelope
+    from cswapsync.settings import SyncError
+    good = make_envelope()
+    broken = make_envelope()
+    broken["accounts"][1]["credentials"] = {}      # slot with no OAuth tokens
+    assert setup_wizard._has_local_accounts(_ExportOnly(json.dumps(good).encode())) is True
+    assert setup_wizard._has_local_accounts(_ExportOnly(json.dumps(broken).encode())) is False
+    assert setup_wizard._has_local_accounts(_ExportOnly(b"not json")) is False
+    assert setup_wizard._has_local_accounts(_ExportOnly(SyncError("no accounts"))) is False

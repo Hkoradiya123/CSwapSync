@@ -20,7 +20,7 @@ from rich.table import Table
 from . import platform_setup as plat
 from .app_context import App, trust_bundle
 from .doctor import FAIL, OK, WARN, cswap_version_check, run_doctor
-from .cswap_adapter import CswapAdapter
+from .cswap_adapter import CswapAdapter, validate_export_payload
 from .encryption import parse_bundle
 from .settings import (IS_WINDOWS, Config, ConfigurationError, IntegrityError, Paths, SyncError,
                       atomic_write_json, read_json)
@@ -364,10 +364,16 @@ def _managed_count(adapter: CswapAdapter) -> int | None:
 
 
 def _has_local_accounts(adapter: CswapAdapter) -> bool:
+    """True only when the local accounts form a valid export worth a rollback snapshot.
+
+    A receiver may carry broken leftovers (e.g. a slot with no OAuth tokens). Those make
+    the rollback snapshot's validation raise IntegrityError and abort the restore, so they
+    are treated as "nothing to preserve" and the cloud state is bootstrapped over them.
+    """
     try:
-        adapter.export_payload()
+        validate_export_payload(adapter.export_payload(), None)
         return True
-    except SyncError:
+    except (SyncError, IntegrityError):
         return False
 
 

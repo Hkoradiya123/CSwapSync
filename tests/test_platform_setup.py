@@ -62,3 +62,38 @@ def test_lease_gate_optional(units):
     plat.install_refresh_hook(gate=True)
     assert plat.lease_gate_installed()
     assert plat.refresh_hook_installed(gate=True)
+
+
+def _capture_icacls(monkeypatch):
+    calls = []
+    monkeypatch.setattr(plat, "IS_WINDOWS", True)
+    monkeypatch.setenv("USERNAME", "korad")
+    monkeypatch.setattr(plat.subprocess, "run", lambda args, **kw: calls.append(args))
+    return calls
+
+
+def test_windows_restrict_dir_grants_inheritable_ace_without_recursing(tmp_path, monkeypatch):
+    calls = _capture_icacls(monkeypatch)
+    (tmp_path / "age-identity.txt").write_text("x")
+    plat.restrict_to_owner(tmp_path)
+    assert calls == [["icacls", str(tmp_path), "/inheritance:r", "/grant:r",
+                      "korad:(OI)(CI)F", "/Q"]]
+
+
+def test_windows_restrict_file_grants_plain_full_control(tmp_path, monkeypatch):
+    calls = _capture_icacls(monkeypatch)
+    f = tmp_path / "google-client-secret.json"
+    f.write_text("{}")
+    plat.restrict_to_owner(f)
+    assert calls == [["icacls", str(f), "/inheritance:r", "/grant:r", "korad:F", "/Q"]]
+
+
+def test_client_secret_candidates_find_google_client_secret_name(tmp_path, monkeypatch):
+    import json
+    monkeypatch.setattr(plat.Path, "home", classmethod(lambda cls: tmp_path))
+    downloads = tmp_path / "Downloads"
+    downloads.mkdir()
+    desktop = {"installed": {"client_id": "x.apps", "project_id": "p1"}}
+    (downloads / "google-client-secret.json").write_text(json.dumps(desktop))
+    (downloads / "google-client-secret-web.json").write_text(json.dumps({"web": {}}))
+    assert plat.client_secret_candidates() == [downloads / "google-client-secret.json"]

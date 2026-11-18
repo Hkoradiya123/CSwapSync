@@ -37,8 +37,12 @@ def restrict_to_owner(path: Path) -> None:
     if IS_WINDOWS:
         user = os.environ.get("USERNAME", "")
         if user:
-            subprocess.run(["icacls", str(path), "/inheritance:r", "/grant:r",
-                            f"{user}:(OI)(CI)F" if path.is_dir() else f"{user}:F", "/T", "/Q"],
+            # No /T: it pushed the folder-only (OI)(CI) flags onto child files, icacls
+            # failed on them after inheritance was already stripped, and the files were
+            # left with no ACEs (PermissionError on next read). Children inherit the
+            # folder grant on their own.
+            acl = f"{user}:(OI)(CI)F" if path.is_dir() else f"{user}:F"
+            subprocess.run(["icacls", str(path), "/inheritance:r", "/grant:r", acl, "/Q"],
                            capture_output=True, check=False, timeout=30)
         return
     os.chmod(path, 0o700 if path.is_dir() else 0o600)
@@ -59,6 +63,7 @@ def client_secret_candidates() -> list[Path]:
     downloads = home / "Downloads"
     if downloads.is_dir():
         paths += sorted(downloads.glob("client_secret*.json"), reverse=True)
+        paths += sorted(downloads.glob("google-client-secret*.json"), reverse=True)
     return [p for p in paths if p.is_file() and is_desktop_client(p)]
 
 
